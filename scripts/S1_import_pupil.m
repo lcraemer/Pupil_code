@@ -1,108 +1,77 @@
-% Importing .edf files as separate .asc files for events and samples
-
+%% clear contents
 clc
-remAppledouble % Removes apple doubles. Havoc otherwise...
-clear
+clear all
 close all
-dbstop if error
-dbstop if warning
 
-%% Add paths and set folder structure
+%% add paths and set folder structure
 
-% Root directory for this project depending on OS
+% root directory for this project
 if ispc
-    homedir = 'G:\Pilot_BB_behav';
+    homedir = 'G:\Pilot_BB_behav';  % For Windows
 elseif ismac
-    homedir = '/Volumes/WORK/Pilot_BB_behav';
+    homedir = '/Volumes/WORK/Pilot_BB_behav/';  % For macOS
+else
+    error('Unsupported operating system');
 end
 
-% Data folders
-rawdir     = homedir;                            % Folder where the .edf files are stored
-wrtdir     = [homedir, filesep, 'Converted'];    % Sub-folder where the .asc files are saved to
+% data folders
+rawdir = fullfile(homedir, 'eyetracker', 'rawedf'); % folder where the .edf files are stored
+wrtdir = fullfile(homedir, 'eyetracker', 'asci'); % sub-folder where the .asc files are saved to
+edf2ascdir = fullfile(userpath, 'Pupil_code', 'functions', 'edf2asc'); % folder that contains the conversion program
 
-% EyeLink path depending on OS
-if ispc
-    edf2ascdir = 'C:\Program Files\EyeLink DataViewer 4.4';
-    edf2asc = [edf2ascdir, filesep, 'edf2asc.exe'];
-    edfapidll  = [edf2ascdir, filesep, 'edfapi.dll'];
-elseif ismac
-    edf2ascdir = '/Applications/EyeLink DataViewer 4.4';
-    edf2asc = '/Applications/EyeLink DataViewer 4.4/EDFConverter.app/Contents/MacOS/EDFConverter';
-    edfapidll  = '';  % Not needed on macOS
-end
+% files that do the conversion from .edf to .asc process
+edf2ascexe = fullfile(edf2ascdir, 'edf2asc.exe');
+edfapidll  = fullfile(edf2ascdir, 'edfapi.dll');
 
-% Check if the necessary subfolders exist, and create them if they don't
-if ~exist([wrtdir, filesep, 'events'], 'dir')
-    mkdir([wrtdir, filesep, 'events']);
-end
-if ~exist([wrtdir, filesep, 'samples'], 'dir')
-    mkdir([wrtdir, filesep, 'samples']);
+% if the folders where the data are written out to don't yet exist, create them
+if ~exist(wrtdir, 'dir')
+    mkdir(fullfile(wrtdir, 'events'));
+    mkdir(fullfile(wrtdir, 'samples'));
 end
 if ~exist(rawdir, 'dir')
     mkdir(rawdir);
 end
 
-%% Get participant folders
+%% Loop through all .edf files in the rawdir
+files = dir(fullfile(rawdir, '*.edf'));  % List all .edf files
+for i = 1:length(files)
+    edffile = files(i).name;  % Get the current .edf file name
 
-participantFolders = dir(rawdir);
-participantFolders = participantFolders([participantFolders.isdir] & ~ismember({participantFolders.name}, {'.', '..'})); %only subfolders, excluding '.' and '..'
+    % Skip if the corresponding .asc files already exist
+    if exist(fullfile(wrtdir, 'events', [edffile(1:end-4) '_e.asc']), 'file')
+        disp(['Skipping ' edffile ' events']);
+        continue;
+    end
+    if exist(fullfile(wrtdir, 'samples', [edffile(1:end-4) '_s.asc']), 'file')
+        disp(['Skipping ' edffile ' samples']);
+        continue;
+    end
 
-%% Loop over participants
-for p = 1:length(participantFolders)
-    participantFolder = participantFolders(p).name; % participant subfolder name
-    participantPath = fullfile(rawdir, participantFolder); % full path to participant folder
+    % Construct full file paths for the input .edf file
+    edf_file_path = fullfile(rawdir, edffile);
+    
+    % Ensure output file paths include the .asc extension
+    events_output_file = fullfile(rawdir, [edffile(1:end-4) '_e.asc']);
+    samples_output_file = fullfile(rawdir, [edffile(1:end-4) '_s.asc']);
+    
+    %% Convert EDF to ASCII file (events)
+    command_events = ['"' edf2ascexe '" -ns "' edf_file_path '" "' events_output_file '"'];
+    disp(['Running command: ' command_events]); % Display the command to verify its correctness
+    
+    % Execute the system command for events
+    system(command_events);
+    
+    %% Convert EDF to ASCII file (samples)
+    command_samples = ['"' edf2ascexe '" -ne "' edf_file_path '" "' samples_output_file '"'];
+    disp(['Running command: ' command_samples]); % Display the command to verify its correctness
+    
+    % Execute the system command for samples
+    system(command_samples);
+    
+    %% Move converted files to appropriate folders
+    movefile(events_output_file, fullfile(wrtdir, 'events'));
+    movefile(samples_output_file, fullfile(wrtdir, 'samples'));
 
-    % Get EDF files for the participant
-    edfFiles = dir(fullfile(participantPath, '*.edf'));
-
-    %% Loop over EDF files
-    for fi = 1:length(edfFiles)
-        edffile = edfFiles(fi).name;
-
-        % Define full paths for the EDF file
-        edffilePath = fullfile(participantPath, edffile);
-
-        % Ensure full paths to the executable
-        edf2asc = '/Applications/EyeLink DataViewer 4.4/EDFConverter.app/Contents/MacOS/EDFConverter';
-
-        % Command for event conversion (separate output for events)
-        command_event = ['"' edf2asc '" -input "' edffilePath '" -e "' fullfile(participantPath, [edffile(1:end-4), '_e.asc']) '"'];
-
-        % Run the conversion for events
-        disp(['Working on ' edffile ' events']);
-        [status_event, cmdout_event] = system(command_event);
-        disp('Event Conversion Output:');
-        disp(cmdout_event);
-
-        % Command for sample conversion (separate output for samples)
-        command_sample = ['"' edf2asc '" -input "' edffilePath '" -s "' fullfile(participantPath, [edffile(1:end-4), '_s.asc']) '"'];
-
-        % Run the conversion for samples
-        disp(['Working on ' edffile ' samples']);
-        [status_sample, cmdout_sample] = system(command_sample);
-        disp('Sample Conversion Output:');
-        disp(cmdout_sample);
-
-        % Define paths for the converted event and sample files
-        eventFile = fullfile(participantPath, [edffile(1:end-4), '_e.asc']);
-        sampleFile = fullfile(participantPath, [edffile(1:end-4), '_s.asc']);
-
-        % Move the event file to the appropriate folder (events)
-        if exist(eventFile, 'file')
-            % Define new location in the 'events' folder under 'Converted'
-            movefile(eventFile, fullfile(wrtdir, 'events', [participantFolder, '_e.asc']));
-            disp(['Moved event file to: ' fullfile(wrtdir, 'events', [participantFolder, '_e.asc'])]);
-        else
-            warning('Event file not created: %s', eventFile);
-        end
-
-        % Move the sample file to the appropriate folder (samples)
-        if exist(sampleFile, 'file')
-            % Define new location in the 'samples' folder under 'Converted'
-            movefile(sampleFile, fullfile(wrtdir, 'samples', [participantFolder, '_s.asc']));
-            disp(['Moved sample file to: ' fullfile(wrtdir, 'samples', [participantFolder, '_s.asc'])]);
-        else
-            warning('Sample file not created: %s', sampleFile);
-        end
-    end % end for fi
-end % end for p
+    % Optional: Clean up (if you need to delete temporary files)
+    % delete('edf2asc.exe', 'edfapi.dll');
+end
