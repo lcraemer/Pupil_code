@@ -16,7 +16,7 @@ end
 
 % data folders
 rawdir = fullfile(homedir, 'eyetracker', 'rawedf'); % folder where the .edf files are stored
-wrtdir = fullfile(homedir, 'eyetracker', 'asci'); % sub-folder where the .asc files are saved to
+wrtdir = fullfile(homedir, 'eyetracker', 'ascii'); % sub-folder where the .asc files are saved to
 edf2ascdir = fullfile(userpath, 'Pupil_code', 'functions', 'edf2asc'); % folder that contains the conversion program
 
 % files that do the conversion from .edf to .asc process
