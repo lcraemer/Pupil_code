@@ -5,77 +5,79 @@ clear all
 close all
 
 %% Setup directory paths
-if ispc
-    homedir = 'G:\Pilot_BB_behav';  % For Windows
-elseif ismac
-    homedir = '/Volumes/WORK/Pilot_BB_behav/';  % For macOS
-else
-    error('Unsupported operating system');
+homedir = 'G:\Pilot_BB_behav';
+rawdir = fullfile(homedir, 'eyetracker', 'rawedf');
+ascdir = fullfile(homedir, 'eyetracker', 'ascii');
+if ~exist(ascdir, 'dir')
+    mkdir(ascdir);
 end
-
-% Data folders
-rawdir = fullfile(homedir, 'eyetracker', 'rawedf'); % Folder where the .edf files are stored
-wrtdir = fullfile(homedir, 'eyetracker', 'ascii'); % Sub-folder where the .asc files are saved
-edf2ascdir = fullfile('C:\Program Files\SR Research\edfconverter'); % Folder that contains the conversion program
-
-% Files that do the conversion from .edf to .asc process
-edf2ascexe = fullfile(edf2ascdir, 'edfconverterW.exe');
-edfapidll  = fullfile(edf2ascdir, 'edfapi64.dll');
-
-% Create output folders if they do not exist
-if ~exist(wrtdir, 'dir')
-    mkdir(fullfile(wrtdir, 'events'));
-    mkdir(fullfile(wrtdir, 'samples'));
+if ~exist(fullfile(ascdir, 'events'), 'dir')
+    mkdir(fullfile(ascdir, 'events'));
+end
+if ~exist(fullfile(ascdir, 'samples'), 'dir')
+    mkdir(fullfile(ascdir, 'samples'));
 end
 if ~exist(rawdir, 'dir')
     mkdir(rawdir);
 end
 
-%% Loop through all .edf files in the rawdir
-files = dir(fullfile(rawdir, '*.edf'));  % List all .edf files
-for i = 1:length(files)
-    edffile = files(i).name;  % Get the current .edf file name
+% Set paths for EDF to ASCII conversion
+edf2ascdir = fullfile('C:\Program Files\SR Research\edfconverter');
+edf2ascexe = fullfile(edf2ascdir, 'edfconverterW.exe');
+edfapidll  = fullfile(edf2ascdir, 'edfapi64.dll');
 
-    % Skip if the corresponding .asc files already exist
-    events_output_file = fullfile(wrtdir, 'events', [edffile(1:end-4) '_e.asc']);
-    samples_output_file = fullfile(wrtdir, 'samples', [edffile(1:end-4) '_s.asc']);
-    
-    if exist(events_output_file, 'file')
-        disp(['Skipping ' edffile ' events']);
-        continue;
-    end
-    if exist(samples_output_file, 'file')
-        disp(['Skipping ' edffile ' samples']);
-        continue;
-    end
+% Loop through all .edf files in the rawdir
+files = dir(fullfile(rawdir, '*.edf'));
+for i = 1:length(files)
+    edffile = files(i).name;
+
+    % Get the base file name without the extension
+    [~, baseName, ~] = fileparts(edffile);
 
     % Construct full file paths for the input .edf file
     edf_file_path = fullfile(rawdir, edffile);
 
     %% Convert EDF to ASCII (events)
-    command_events = ['"' edf2ascexe '" -ns "' edf_file_path '" "' events_output_file '"'];
-    remAppledouble
+    command_events = ['"' edf2ascexe '" -ne "' edf_file_path '"'];
     disp(['Running command for events: ' command_events]);
-    status = system(command_events);  % Execute the conversion for events
+    status = system(command_events);
 
-    if status == 0  % Check if the conversion was successful
+    if status == 0
         disp(['Successfully converted events for: ', edffile]);
+
+        % Identify the created events file (it should be created in the same directory)
+        events_file = fullfile(rawdir, [baseName '.asc']);
+
+        % Check if the file exists and move it
+        if exist(events_file, 'file')
+            movefile(events_file, fullfile(ascdir, 'events', [baseName '_e.asc']));
+        else
+            disp(['Error: Events file not created for: ', edffile]);
+        end
     else
         disp(['Error converting events for: ', edffile]);
         continue;
     end
 
     %% Convert EDF to ASCII (samples)
-    command_samples = ['"' edf2ascexe '" -ne "' edf_file_path '" "' samples_output_file '"'];
-    remAppledouble
+    command_samples = ['"' edf2ascexe '" -ns "' edf_file_path '"'];
     disp(['Running command for samples: ' command_samples]);
-    status = system(command_samples);  % Execute the conversion for samples
+    status = system(command_samples);
 
-    if status == 0  % Check if the conversion was successful
+    if status == 0
         disp(['Successfully converted samples for: ', edffile]);
+
+        % Identify the created samples file (it should be created in the same directory)
+        samples_file = fullfile(rawdir, [baseName '.asc']);
+
+        % Check if the file exists and move it
+        if exist(samples_file, 'file')
+            movefile(samples_file, fullfile(ascdir, 'samples', [baseName '_s.asc']));
+        else
+            disp(['Error: Samples file not created for: ', edffile]);
+        end
     else
         disp(['Error converting samples for: ', edffile]);
         continue;
     end
-
 end
