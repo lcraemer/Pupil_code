@@ -81,10 +81,14 @@ for i = 1:length(filz) % looping through all files to process
     disp('Parsed Data:');
     disp(pupil_text);
 
+    %%% Hab ich nicht...?
+    convert2diam = false;
+
     % Convert numeric columns manually if they contain valid numbers
     for col = [1, 4] % Columns that are expected to be numeric
         for row = 1:length(pupil_text{col})
-            num_value = str2double(pupil_text{col}{row});
+            % Check if the current entry is numeric or a valid number
+            num_value = pupil_text{col}(row); % Direct indexing if it's a numeric vector
             if ~isnan(num_value)
                 pupil_text{col}{row} = num_value;
             else
@@ -102,7 +106,7 @@ for i = 1:length(filz) % looping through all files to process
 
     trl = 0;
     events = [];
-    for i = 1:samples
+    for i = 1:length(filz)
         trlmarker = cell2mat(event_text{1,3}(i));
         if isempty(str2num(trlmarker)); continue, end %skip calibration, validation, etc markers
         if strcmp(cell2mat(event_text{1,1}(i)),'MSG') == 1 %if this is a trigger message
