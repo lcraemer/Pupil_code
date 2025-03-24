@@ -1,16 +1,20 @@
 %importing .edf files as separate .asc files for events and samples
 
 %% clear contents
-clear 
-close all
 clc
+clear all
+close all
 %% add paths and set folder structure
 
 %root directory for this project
-homedir = 'C:\DATA\Pupil_code\';
+if ispc
+    homedir = 'G:\Pilot_BB_behav';
+elseif ismac
+    homedir = '/Volumes/WORK/Pilot_BB_behav'
+end
 
 %data folders
-rawdir     = [homedir 'data\raw\edf\']; %folder where the .edf files are stored
+rawdir = fullfile(homedir, 'eyetracker', 'rawedf');
 wrtdir     = [homedir 'data\raw\imported\']; %sub-folder where the .asc files are saved to
 edf2ascdir = [homedir 'functions\edf2asc\']; %folder that contains the conversion program
 
