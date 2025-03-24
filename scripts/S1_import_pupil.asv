@@ -1,0 +1,58 @@
+%% clear contents
+clc
+remAppledouble
+clear all
+close all
+
+%% Setup directory paths
+if ispc
+    homedir = 'G:\Pilot_BB_behav';
+elseif ismac
+    homedir = '/Volumes/WORK/Pilot_BB_behav'
+end
+rawdir = fullfile(homedir, 'eyetracker', 'rawedf');
+ascdir = fullfile(homedir, 'eyetracker', 'ascii');
+
+% Set paths for EDF to ASCII conversion
+edf2ascdir = fullfile(userpath, 'Pupil_code_orig', 'functions', 'edf2asc');
+edf2ascexe = fullfile(edf2ascdir, 'edf2asc.exe');
+edfapidll  = fullfile(edf2ascdir, 'edfapi.dll');
+
+%% Get files to process
+
+filz = dir(fullfile('rawdir', '*.edf');
+
+%% loop over files
+
+for fi = 1:length(filz)
+    
+    %% define output files, and check if they are already there
+    
+    edffile = filz(fi).name;
+    if exist([ascdir 'events\' edffile(1:end-4) '_e.asc'], 'file' ); disp(['skipping ' edffile]); continue; end
+    
+    %% place the conversion program in the pupil data folder
+    
+    copyfile(edf2ascexe,rawdir);
+    copyfile(edfapidll, rawdir);
+    
+    %% convert EDF to ASCII file and put in correct folder
+    
+    cd(rawdir)
+    
+    %run the conversion to .asc
+    disp(['working on ' edffile ' events']);
+    system(['edf2asc -ns ' edffile ' ' edffile(1:end-4) '_e']); %-ns for no samples, so these are just the events
+    
+    disp(['working on ' edffile ' samples']);
+    system(['edf2asc -ne ' edffile ' ' edffile(1:end-4) '_s']); %-ne for no events, so these are just the samples
+    
+    
+    movefile([edffile(1:end-4) '_e.asc'], [ascdir 'events\'] )
+    movefile([edffile(1:end-4) '_s.asc'], [ascdir 'samples\'])
+    
+    %file clean up
+    delete('edf2asc.exe','edfapi.dll')
+    
+    
+end
